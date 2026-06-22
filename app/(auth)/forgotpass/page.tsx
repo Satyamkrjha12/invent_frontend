@@ -1,6 +1,6 @@
 import React from 'react'
-import AuthBanner from '../components/AuthBanner'
-import ForgotPasswordForm from '../components/ForgotPasswordForm'
+import AuthBanner from '@/components/auth/AuthBanner'
+import ForgotPasswordForm from '@/components/auth/ForgotPasswordForm'
 
 export default function page() {
   return (

@@ -1,8 +1,8 @@
-import FeaturesSection from '@/components/FeaturesSection';
-import Footer from '@/components/Footer';
-import Header from '@/components/Header';
-import OnboardingSection from '@/components/OnboardingSection';
-import TestimonialsSection from '@/components/TestimonialsSection';
+import FeaturesSection from '@/components/common/FeaturesSection';
+import Footer from '@/components/common/Footer';
+import LandingHeader from '@/components/common/LandingHeader';
+import OnboardingSection from '@/components/common/OnboardingSection';
+import TestimonialsSection from '@/components/common/TestimonialsSection';
 import React from 'react'
 
 export default function layout({
@@ -12,7 +12,7 @@ export default function layout({
 }>) {
   return (
     <div>
-      <Header />
+      <LandingHeader />
       {children}
       <FeaturesSection />
       <OnboardingSection />

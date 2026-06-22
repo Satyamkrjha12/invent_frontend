@@ -1,145 +1,89 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Header from "./components/Header";
-import OnboardingStepper from "./components/OnboardingStepper";
-import CompanyInfo from "./components/CompanyInfo";
-import Subscription from "./components/Subscription";
-import Sites from "./components/Sites";
-import Locations from "./components/Locations";
-import Categories from "./components/Categories";
-import AssetFields from "./components/AssetFields";
-import Events from "./components/Events";
-import { CheckCircle2, ChevronRight, LayoutDashboard, Settings } from "lucide-react";
- import Link from "next/link";
+import Link from "next/link";
+import { CheckCircle2, LayoutDashboard, Settings } from "lucide-react";
+import OnboardingHeader from "@/components/onboarding/OnboardingHeader";
+import OnboardingStepper from "@/components/onboarding/OnboardingStepper";
+import { useOnboarding } from "@/context/OnboardingContext";
+import dynamic from "next/dynamic";
+import { Spinner } from "@/components/ui/Spinner";
+
+function OnboardingStepLoader() {
+  return (
+    <div className="mx-auto max-w-2xl rounded-3xl border border-orange-100 bg-white p-12 shadow-xl shadow-orange-50/50 flex flex-col items-center justify-center min-h-[300px]">
+      <Spinner size="lg" />
+      <p className="mt-4 text-sm font-medium text-gray-500 animate-pulse">
+        Loading step details...
+      </p>
+    </div>
+  );
+}
+
+const CompanyInfo = dynamic(() => import("@/components/onboarding/CompanyInfo"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
+const Subscription = dynamic(() => import("@/components/onboarding/Subscription"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
+const Sites = dynamic(() => import("@/components/onboarding/Sites"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
+const Locations = dynamic(() => import("@/components/onboarding/Locations"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
+const Categories = dynamic(() => import("@/components/onboarding/Categories"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
+const AssetFields = dynamic(() => import("@/components/onboarding/AssetFields"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
+const Events = dynamic(() => import("@/components/onboarding/Events"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
 
 export default function OnboardingPage() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const {
+    currentStep,
+    isCompleted,
+    companyInfo,
+    subscription,
+    sites,
+    locations,
+    categories,
+    assetFields,
+  } = useOnboarding();
 
-  const [formData, setFormData] = useState({
-    companyInfo: {
-      companyName: "",
-      industry: "",
-      orgSize: "1-10",
-      email: "",
-      phone: "",
-      address: "",
-    },
-    subscription: {
-      plan: "professional",
-      billing: "monthly" as "monthly" | "yearly",
-    },
-    sites: [
-      { id: "1", name: "Primary Warehouse", type: "warehouse", address: "HQ Site" },
-    ],
-    locations: [
-      { id: "1", siteId: "1", name: "Aisle A, Bin 1", description: "General Storage" },
-    ],
-    categories: ["Electronics & Devices", "Office Supplies", "Tools & Equipment"],
-    assetFields: ["serial_number", "barcode", "purchase_price"],
-    events: ["check_in", "check_out", "transfer", "audit"],
-  });
-
-  const handleUpdate = (section: keyof typeof formData, field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleRawUpdate = (section: keyof typeof formData, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [section]: value,
-    }));
-  };
-
-  const handleNext = () => {
-    if (currentStep < 7) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  };
-
-  const handleSubmit = () => {
-    setIsCompleted(true);
-  };
-
-  // Render the current component
   const renderStepComponent = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <CompanyInfo
-            data={formData.companyInfo}
-            onChange={(field, val) => handleUpdate("companyInfo", field, val)}
-            onNext={handleNext}
-          />
-        );
+        return <CompanyInfo />;
       case 2:
-        return (
-          <Subscription
-            data={formData.subscription}
-            onChange={(field, val) => handleUpdate("subscription", field, val)}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
+        return <Subscription />;
       case 3:
-        return (
-          <Sites
-            data={{ sites: formData.sites }}
-            onChange={(field, val) => handleRawUpdate("sites", val)}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
+        return <Sites />;
       case 4:
-        return (
-          <Locations
-            data={{ sites: formData.sites, locations: formData.locations }}
-            onChange={(field, val) => handleRawUpdate("locations", val)}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
+        return <Locations />;
       case 5:
-        return (
-          <Categories
-            data={{ categories: formData.categories }}
-            onChange={(field, val) => handleRawUpdate("categories", val)}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
+        return <Categories />;
       case 6:
-        return (
-          <AssetFields
-            data={{ assetFields: formData.assetFields }}
-            onChange={(field, val) => handleRawUpdate("assetFields", val)}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
+        return <AssetFields />;
       case 7:
-        return (
-          <Events
-            data={{ events: formData.events }}
-            onChange={(field, val) => handleRawUpdate("events", val)}
-            onSubmit={handleSubmit}
-            onBack={handleBack}
-          />
-        );
+        return <Events />;
       default:
         return null;
     }
@@ -148,7 +92,7 @@ export default function OnboardingPage() {
   if (isCompleted) {
     return (
       <div className="min-h-screen bg-orange-50/20">
-        <Header />
+        <OnboardingHeader />
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -162,7 +106,11 @@ export default function OnboardingPage() {
 
             <h1 className="text-3xl font-black text-gray-950">Setup Complete!</h1>
             <p className="mt-4 text-gray-500">
-              Your organization <span className="font-semibold text-orange-600">{formData.companyInfo.companyName || "Your Company"}</span> is now configured and ready.
+              Your organization{" "}
+              <span className="font-semibold text-orange-600">
+                {companyInfo.companyName || "Your Company"}
+              </span>{" "}
+              is now configured and ready.
             </p>
 
             {/* Summary */}
@@ -174,27 +122,29 @@ export default function OnboardingPage() {
               <div className="grid gap-3 text-sm text-gray-600">
                 <div className="flex justify-between">
                   <span className="font-medium">Industry:</span>
-                  <span>{formData.companyInfo.industry || "Not Specified"}</span>
+                  <span>{companyInfo.industry || "Not Specified"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Subscription Tier:</span>
-                  <span className="capitalize">{formData.subscription.plan} ({formData.subscription.billing})</span>
+                  <span className="capitalize">
+                    {subscription.plan} ({subscription.billing})
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Sites Configured:</span>
-                  <span>{formData.sites.length} site(s)</span>
+                  <span>{sites.length} site(s)</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Storage Locations:</span>
-                  <span>{formData.locations.length} location(s)</span>
+                  <span>{locations.length} location(s)</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Categories:</span>
-                  <span>{formData.categories.length} active</span>
+                  <span>{categories.length} active</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Enabled Trackers:</span>
-                  <span>{formData.assetFields.length} fields</span>
+                  <span>{assetFields.length} fields</span>
                 </div>
               </div>
             </div>
@@ -216,8 +166,8 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-orange-50/20 pb-20">
-      <Header />
-      <OnboardingStepper currentStep={currentStep} onStepClick={(stepId) => setCurrentStep(stepId)} />
+      <OnboardingHeader />
+      <OnboardingStepper />
 
       <main className="mx-auto max-w-7xl px-4 mt-10">
         <AnimatePresence mode="wait">
