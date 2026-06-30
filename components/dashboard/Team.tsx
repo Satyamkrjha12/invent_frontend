@@ -40,13 +40,29 @@ const INITIAL_MEMBERS: Member[] = [
 ];
 
 export default function Team() {
-  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Invite Form State
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "Operator" });
+
+  const loadMembers = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get("/team");
+      setMembers(res.members || []);
+    } catch (err) {
+      console.error("Failed to load team members:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
 
   const getRoleIcon = (role: string) => {
     const r = role.toLowerCase();
@@ -68,20 +84,18 @@ export default function Team() {
 
     setIsSubmitting(true);
     try {
-      // Simulate adding a member locally since /api/team is not a listed backend route
-      const newMember: Member = {
-        id: Math.random().toString(36).substring(2, 9),
+      const newMember = await api.post("/team", {
         name: form.name,
         email: form.email,
+        password: form.password,
         role: form.role,
-        status: "Active",
-      };
+      });
       setMembers((prev) => [...prev, newMember]);
       setIsModalOpen(false);
       setForm({ name: "", email: "", password: "", role: "Operator" });
     } catch (err: any) {
       console.error(err);
-      alert("Failed to invite member.");
+      alert(err.message || "Failed to invite member.");
     } finally {
       setIsSubmitting(false);
     }

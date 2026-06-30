@@ -56,6 +56,11 @@ const Events = dynamic(() => import("@/components/onboarding/Events"), {
   ssr: false,
 });
 
+const PaymentGateway = dynamic(() => import("@/components/onboarding/PaymentGateway"), {
+  loading: () => <OnboardingStepLoader />,
+  ssr: false,
+});
+
 export default function OnboardingPage() {
   const {
     currentStep,
@@ -66,6 +71,7 @@ export default function OnboardingPage() {
     locations,
     categories,
     assetFields,
+    user,
   } = useOnboarding();
 
   const renderStepComponent = () => {
@@ -90,75 +96,81 @@ export default function OnboardingPage() {
   };
 
   if (isCompleted) {
+    const isPaid = user?.paymentCompleted;
+
     return (
       <div className="min-h-screen bg-orange-50/20">
         <OnboardingHeader />
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", duration: 0.8 }}
-            className="rounded-3xl border border-orange-100 bg-white p-12 shadow-2xl shadow-orange-100"
-          >
-            <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-              <CheckCircle2 className="h-16 w-16" />
-            </div>
+          {!isPaid ? (
+            <PaymentGateway />
+          ) : (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", duration: 0.8 }}
+              className="rounded-3xl border border-orange-100 bg-white p-12 shadow-2xl shadow-orange-100"
+            >
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                <CheckCircle2 className="h-16 w-16" />
+              </div>
 
-            <h1 className="text-3xl font-black text-gray-950">Setup Complete!</h1>
-            <p className="mt-4 text-gray-500">
-              Your organization{" "}
-              <span className="font-semibold text-orange-600">
-                {companyInfo.companyName || "Your Company"}
-              </span>{" "}
-              is now configured and ready.
-            </p>
+              <h1 className="text-3xl font-black text-gray-950">Setup Complete!</h1>
+              <p className="mt-4 text-gray-500">
+                Your organization{" "}
+                <span className="font-semibold text-orange-600">
+                  {companyInfo.companyName || "Your Company"}
+                </span>{" "}
+                is now configured and ready.
+              </p>
 
-            {/* Summary */}
-            <div className="mt-8 rounded-2xl bg-orange-50/50 p-6 text-left border border-orange-50">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-orange-600 mb-4 flex items-center gap-1.5">
-                <Settings className="h-4 w-4" />
-                Setup Summary
-              </h3>
-              <div className="grid gap-3 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <span className="font-medium">Industry:</span>
-                  <span>{companyInfo.industry || "Not Specified"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Subscription Tier:</span>
-                  <span className="capitalize">
-                    {subscription.plan} ({subscription.billing})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Sites Configured:</span>
-                  <span>{sites.length} site(s)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Storage Locations:</span>
-                  <span>{locations.length} location(s)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Categories:</span>
-                  <span>{categories.length} active</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Enabled Trackers:</span>
-                  <span>{assetFields.length} fields</span>
+              {/* Summary */}
+              <div className="mt-8 rounded-2xl bg-orange-50/50 p-6 text-left border border-orange-50">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-orange-600 mb-4 flex items-center gap-1.5">
+                  <Settings className="h-4 w-4" />
+                  Setup Summary
+                </h3>
+                <div className="grid gap-3 text-sm text-gray-600">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Industry:</span>
+                    <span>{companyInfo.industry || "Not Specified"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Subscription Tier:</span>
+                    <span className="capitalize">
+                      {subscription.plan} ({subscription.billing})
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Sites Configured:</span>
+                    <span>{sites.length} site(s)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Storage Locations:</span>
+                    <span>{locations.length} location(s)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Categories:</span>
+                    <span>{categories.length} active</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Enabled Trackers:</span>
+                    <span>{assetFields.length} fields</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-10">
-              <Link
-                href="/dashboard"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 px-8 font-semibold text-white shadow-lg shadow-orange-100 hover:bg-orange-600 hover:scale-[1.02] active:scale-95 transition-all duration-200"
-              >
-                Go to Dashboard
-                <LayoutDashboard className="h-5 w-5" />
-              </Link>
-            </div>
-          </motion.div>
+              <div className="mt-10">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 px-8 font-semibold text-white shadow-lg shadow-orange-100 hover:bg-orange-600 hover:scale-[1.02] active:scale-95 transition-all duration-200"
+                >
+                  Go to Dashboard
+                  <LayoutDashboard className="h-5 w-5" />
+                </Link>
+              </div>
+            </motion.div>
+          )}
         </main>
       </div>
     );

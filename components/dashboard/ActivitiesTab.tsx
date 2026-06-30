@@ -68,8 +68,8 @@ export default function ActivitiesTab() {
   const loadActivities = async () => {
     try {
       setIsLoading(true);
-      // Revert to static mock data since /api/activities is not defined in the backend routing guide
-      setActivities(MOCK_ACTIVITIES);
+      const res = await api.get("/activities");
+      setActivities(res.activities || []);
     } catch (err) {
       console.error("Failed to load activities:", err);
     } finally {

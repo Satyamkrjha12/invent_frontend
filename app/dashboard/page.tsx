@@ -72,23 +72,63 @@ const AddAssetTab = dynamic(() => import("@/components/dashboard/AddAssetTab"), 
   ),
 });
 
+const LogsTab = dynamic(() => import("@/components/dashboard/LogsTab"), {
+  loading: () => (
+    <div className="py-20 flex items-center justify-center">
+      <Spinner size="lg" />
+    </div>
+  ),
+});
+
 export default function DashboardPage() {
-  const { user, isLoading } = useOnboarding();
+  const { user, isLoading, setUser } = useOnboarding();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
+    const verifyPaymentStatus = async () => {
+      const storedToken = localStorage.getItem("token");
+      if (!storedToken) {
         router.push("/signin");
-      } else if (!user.tenantId) {
-        router.push("/onboarding");
+        return;
       }
-    }
-  }, [isLoading, user, router]);
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/verify`, {
+          headers: {
+            Authorization: `Bearer ${storedToken}`,
+          },
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setUser(data.user);
+          }
+          
+          if (!data.user.tenantId) {
+            router.push("/onboarding");
+          } else if (!data.user.paymentCompleted) {
+            router.push("/onboarding");
+          } else {
+            setIsVerifying(false);
+          }
+        } else {
+          router.push("/signin");
+        }
+      } catch (err) {
+        console.error("Failed to verify user payment status:", err);
+        router.push("/signin");
+      }
+    };
 
-  if (isLoading || !user || !user.tenantId) {
+    if (!isLoading) {
+      verifyPaymentStatus();
+    }
+  }, [isLoading, router, setUser]);
+
+  if (isLoading || isVerifying || !user || !user.tenantId || !user.paymentCompleted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50">
         <div className="text-center space-y-4">
@@ -115,6 +155,8 @@ export default function DashboardPage() {
         return <Team />;
       case "settings":
         return <SettingsTab />;
+      case "logs":
+        return <LogsTab />;
       default:
         return <Overview onTabChange={(tab) => setActiveTab(tab)} />;
     }

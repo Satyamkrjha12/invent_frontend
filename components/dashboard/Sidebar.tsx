@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,9 +16,10 @@ import {
   ChevronRight,
   LogOut,
   Tag,
+  Terminal,
 } from "lucide-react";
 import { useOnboarding } from "@/context/OnboardingContext";
-import { useInventoryStore } from "@/utils/store/useInventoryStore";
+import { api } from "@/utils/api";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -27,22 +28,39 @@ interface SidebarProps {
   onTabChange: (tabId: string) => void;
 }
 
-const NAV_ITEMS = [
-  { id: "overview", name: "Overview", icon: LayoutDashboard },
-  { id: "inventory", name: "Inventory", icon: ClipboardList, showBadge: true },
-  { id: "add-category", name: "Add Category", icon: Tag },
-  { id: "sites", name: "Sites & Bins", icon: Warehouse },
-  { id: "activities", name: "Activity Logs", icon: History },
-  { id: "team", name: "Team Members", icon: Users },
-  { id: "settings", name: "Settings", icon: Settings },
-];
-
 export default function Sidebar({ isOpen, onClose, activeTab, onTabChange }: SidebarProps) {
-  const { companyInfo, subscription, sites } = useOnboarding();
+  const { companyInfo, subscription, sites, user } = useOnboarding();
   const companyName = companyInfo.companyName || "Acme Warehouse";
   const plan = subscription.plan || "starter";
   const sitesCount = sites.length;
-  const itemsCount = useInventoryStore((state) => state.items.length);
+  const [itemsCount, setItemsCount] = useState(0);
+
+  useEffect(() => {
+    async function loadCount() {
+      try {
+        const res = await api.get("/inventory");
+        setItemsCount(res.items?.length || 0);
+      } catch (err) {
+        console.error("Failed to load inventory count in sidebar:", err);
+      }
+    }
+    if (user?.tenantId) {
+      loadCount();
+    }
+  }, [activeTab, user?.tenantId]);
+
+  const navItems = [
+    { id: "overview", name: "Overview", icon: LayoutDashboard },
+    { id: "inventory", name: "Inventory", icon: ClipboardList, showBadge: true },
+    { id: "add-category", name: "Add Category", icon: Tag },
+    { id: "sites", name: "Sites & Bins", icon: Warehouse },
+    { id: "activities", name: "Activity Logs", icon: History },
+    { id: "team", name: "Team Members", icon: Users },
+    { id: "settings", name: "Settings", icon: Settings },
+    ...(user?.role?.toLowerCase() === "admin"
+      ? [{ id: "logs", name: "Backend Logs", icon: Terminal }]
+      : []),
+  ];
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between bg-slate-900 text-slate-300">
@@ -70,7 +88,7 @@ export default function Sidebar({ isOpen, onClose, activeTab, onTabChange }: Sid
 
         {/* Navigation Items */}
         <nav className="space-y-1.5 px-4 py-6">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive = activeTab === item.id;
             const NavIcon = item.icon;
 

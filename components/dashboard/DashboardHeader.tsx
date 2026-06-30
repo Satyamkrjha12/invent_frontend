@@ -3,21 +3,19 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Bell, Menu, Search, User, LogOut, Settings, Shield, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { useOnboarding } from "@/context/OnboardingContext";
+import { api } from "@/utils/api";
 
 interface DashboardHeaderProps {
   onMenuClick: () => void;
   activeTab: string;
 }
 
-const NOTIFICATIONS = [
-  { id: 1, title: "Low Stock Alert", desc: "Aisle A Bin 1: 'Safety Goggles' count is below 5.", time: "2 min ago", unread: true },
-  { id: 2, title: "Transfer Completed", desc: "15x laptops moved from Main HQ to Site 2.", time: "1 hr ago", unread: true },
-  { id: 3, title: "Audit Pending", desc: "Monthly reconciliation required for Electronics.", time: "1 day ago", unread: false },
-];
-
 export default function DashboardHeader({ onMenuClick, activeTab }: DashboardHeaderProps) {
+  const { user, searchQuery, setSearchQuery } = useOnboarding();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +33,30 @@ export default function DashboardHeader({ onMenuClick, activeTab }: DashboardHea
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
+  // Fetch real low-stock notifications from backend on mount
+  useEffect(() => {
+    async function loadAlerts() {
+      try {
+        const res = await api.get("/inventory");
+        const lowStock = res.items?.filter((item: any) => item.status === "Low Stock") || [];
+        const alerts = lowStock.map((item: any, idx: number) => ({
+          id: idx + 1,
+          title: "Low Stock Alert",
+          desc: `${item.name} (${item.sku}) is below limit: only ${item.qty} left in ${item.site || "warehouse"}.`,
+          time: "Just now",
+          unread: true,
+        }));
+        setNotifications(alerts);
+      } catch (e) {
+        console.error("Failed to load notifications:", e);
+      }
+    }
+    if (user?.tenantId) {
+      loadAlerts();
+    }
+  }, [user?.tenantId]);
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   const getHeaderInfo = () => {
     switch (activeTab) {
@@ -83,6 +104,8 @@ export default function DashboardHeader({ onMenuClick, activeTab }: DashboardHea
           <input
             type="text"
             placeholder="Search items, sites, or serials..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-2xl border-gray-100 bg-gray-50/50 pl-10 pr-4 py-2.5 text-sm focus:border-orange-500/50 focus:outline-none border focus:ring-4 focus:ring-orange-500/5 transition-all"
           />
         </div>
@@ -119,20 +142,29 @@ export default function DashboardHeader({ onMenuClick, activeTab }: DashboardHea
                 </span>
               </div>
               <div className="space-y-3.5 max-h-64 overflow-y-auto">
-                {NOTIFICATIONS.map((notif) => (
-                  <div key={notif.id} className="flex flex-col gap-1 rounded-xl p-2 hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-semibold ${notif.unread ? "text-orange-600" : "text-gray-950"}`}>
-                        {notif.title}
-                      </span>
-                      <span className="text-3xs text-gray-400">{notif.time}</span>
+                {notifications.length > 0 ? (
+                  notifications.map((notif) => (
+                    <div key={notif.id} className="flex flex-col gap-1 rounded-xl p-2 hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-semibold ${notif.unread ? "text-orange-600" : "text-gray-950"}`}>
+                          {notif.title}
+                        </span>
+                        <span className="text-3xs text-gray-400">{notif.time}</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-gray-500">{notif.desc}</p>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-gray-500">{notif.desc}</p>
+                  ))
+                ) : (
+                  <div className="py-6 text-center text-xs font-semibold text-gray-400">
+                    No new alerts.
                   </div>
-                ))}
+                )}
               </div>
               <div className="border-t border-gray-100 mt-3.5 pt-3 text-center">
-                <button className="text-xs font-bold text-orange-500 hover:text-orange-600">
+                <button 
+                  onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))}
+                  className="text-xs font-bold text-orange-500 hover:text-orange-600"
+                >
                   Mark all as read
                 </button>
               </div>
@@ -146,12 +178,12 @@ export default function DashboardHeader({ onMenuClick, activeTab }: DashboardHea
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-gray-50 text-left transition-colors"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-sm font-bold text-white shadow-sm">
-              S
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-sm font-bold text-white shadow-sm uppercase">
+              {(user?.name || "U").slice(0, 1)}
             </div>
             <div className="hidden lg:block">
-              <div className="text-xs font-bold text-gray-950 leading-tight">Shubh Verma</div>
-              <div className="text-3xs font-semibold text-gray-400">Admin Owner</div>
+              <div className="text-xs font-bold text-gray-950 leading-tight">{user?.name || "User Profile"}</div>
+              <div className="text-3xs font-semibold text-gray-400 capitalize">{user?.role || "Admin Owner"}</div>
             </div>
             <ChevronDown className="hidden lg:block h-3.5 w-3.5 text-gray-400" />
           </button>
@@ -160,7 +192,7 @@ export default function DashboardHeader({ onMenuClick, activeTab }: DashboardHea
             <div className="absolute right-0 mt-3 w-56 origin-top-right rounded-2xl border border-gray-100 bg-white p-2.5 shadow-xl shadow-gray-100/50 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="border-b border-gray-50 px-3 py-2">
                 <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Account</p>
-                <p className="text-sm font-semibold text-gray-800 truncate mt-0.5">shubh@verma.com</p>
+                <p className="text-sm font-semibold text-gray-800 truncate mt-0.5">{user?.email || "user@example.com"}</p>
               </div>
 
               <div className="mt-2 space-y-1">

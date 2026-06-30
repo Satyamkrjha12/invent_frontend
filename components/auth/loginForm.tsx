@@ -47,20 +47,28 @@ export default function LoginForm() {
     },
   });
 
+  const [otpStatus, setOtpStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   const handleGenerateOtp = async () => {
     const isEmailValid = await trigger("email");
     if (!isEmailValid) return;
 
     setIsOtpGenerating(true);
+    setOtpStatus(null);
     try {
       const email = getValues("email");
-      const res = await api.post("/auth/otp/generate", { email });
-      const testOtp = res.testOtp || "123456";
-      alert(`OTP code generated: ${testOtp} (Use default: 123456)`);
+      await api.post("/auth/otp/generate", { email });
+      setOtpStatus({
+        type: "success",
+        message: "OTP sent! Please check your registered email address.",
+      });
       setShowOtpField(true);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Failed to generate OTP.");
+      setOtpStatus({
+        type: "error",
+        message: err.message || "Failed to generate OTP.",
+      });
     } finally {
       setIsOtpGenerating(false);
     }
@@ -68,9 +76,14 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
+    setOtpStatus(null);
     try {
       if (!data.otp) {
-        alert("You need to varify through the otp first !!!");
+        setOtpStatus({
+          type: "error",
+          message: "Please generate and verify the OTP code before signing in.",
+        });
+        setIsSubmitting(false);
         return;
       }
 
@@ -79,12 +92,10 @@ export default function LoginForm() {
         password: data.password,
         otp: data.otp
       };
-      if (!data.otp) {
-        alert("You need to varify through the otp first !!!")
-      }
+      
       const response = await api.post("/auth/login", payload);
       if (response && response.token) {
-        authLogin(response.token, response.user);
+        authLogin(response.token, response.refreshToken || null, response.user);
         if (response.user.tenantId) {
           router.push("/dashboard");
         } else {
@@ -93,7 +104,10 @@ export default function LoginForm() {
       }
     } catch (err: any) {
       console.error("Login failed:", err);
-      alert(err.message || "Invalid credentials or login failed.");
+      setOtpStatus({
+        type: "error",
+        message: err.message || "Invalid credentials or login failed.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -140,9 +154,17 @@ export default function LoginForm() {
             {...register("password")}
           />
 
+          {/* Status Message */}
+          {otpStatus && (
+            <div className={`p-3 rounded-xl text-xs font-semibold ${otpStatus.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"}`}>
+              {otpStatus.message}
+            </div>
+          )}
+
           {/* Generate OTP */}
           {!showOtpField && (
             <Button
+              type="button"
               variant="outline"
               onClick={handleGenerateOtp}
               isLoading={isOtpGenerating}
@@ -154,14 +176,26 @@ export default function LoginForm() {
 
           {/* OTP Field */}
           {showOtpField && (
-            <Input
-              id="otp"
-              label="Enter OTP"
-              placeholder="123456"
-              error={errors.otp?.message}
-              icon={<ShieldCheck className="h-4 w-4" />}
-              {...register("otp")}
-            />
+            <div className="space-y-1.5">
+              <Input
+                id="otp"
+                label="Enter OTP"
+                placeholder="123456"
+                error={errors.otp?.message}
+                icon={<ShieldCheck className="h-4 w-4" />}
+                {...register("otp")}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleGenerateOtp}
+                  disabled={isOtpGenerating}
+                  className="text-xs font-semibold text-orange-500 hover:text-orange-600 hover:underline disabled:opacity-50 transition-colors"
+                >
+                  {isOtpGenerating ? "Resending..." : "Resend OTP Code"}
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Forgot Password */}

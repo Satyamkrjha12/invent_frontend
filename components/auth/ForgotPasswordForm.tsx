@@ -69,20 +69,28 @@ export default function ForgotPasswordForm() {
     },
   });
 
+  const [otpStatus, setOtpStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   const handleGenerateOtp = async () => {
     const isEmailValid = await trigger("email");
     if (!isEmailValid) return;
 
     setIsLoading(true);
+    setOtpStatus(null);
     try {
       const email = getValues("email");
-      const res = await api.post("/auth/otp/generate-reset", { email });
-      const testOtp = res.testOtp || "123456";
-      alert(`Reset OTP code generated: ${testOtp} (Use default: 123456)`);
+      await api.post("/auth/otp/generate-reset", { email });
+      setOtpStatus({
+        type: "success",
+        message: "Reset OTP sent! Please check your registered email address.",
+      });
       setStep(2);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Failed to generate reset OTP.");
+      setOtpStatus({
+        type: "error",
+        message: err.message || "Failed to generate reset OTP.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -93,14 +101,22 @@ export default function ForgotPasswordForm() {
     if (!isOtpValid) return;
 
     setIsLoading(true);
+    setOtpStatus(null);
     try {
       const email = getValues("email");
       const otp = getValues("otp");
       await api.post("/auth/otp/verify-reset", { email, otp });
+      setOtpStatus({
+        type: "success",
+        message: "OTP successfully verified! Please enter your new password.",
+      });
       setStep(3);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Invalid or expired OTP.");
+      setOtpStatus({
+        type: "error",
+        message: err.message || "Invalid or expired OTP.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -111,17 +127,26 @@ export default function ForgotPasswordForm() {
     if (!isPasswordValid) return;
 
     setIsLoading(true);
+    setOtpStatus(null);
     try {
       await api.post("/auth/password/reset", {
         email: data.email,
         otp: data.otp,
         password: data.newPassword,
       });
-      alert("Password successfully reset! Redirecting to Sign In...");
-      router.push("/signin");
+      setOtpStatus({
+        type: "success",
+        message: "Password successfully reset! Redirecting to Sign In...",
+      });
+      setTimeout(() => {
+        router.push("/signin");
+      }, 2000);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Failed to reset password.");
+      setOtpStatus({
+        type: "error",
+        message: err.message || "Failed to reset password.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -159,9 +184,17 @@ export default function ForgotPasswordForm() {
             />
           )}
 
+          {/* Status Message */}
+          {otpStatus && (
+            <div className={`p-3 rounded-xl text-xs font-semibold ${otpStatus.type === "success" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"}`}>
+              {otpStatus.message}
+            </div>
+          )}
+
           {/* GENERATE OTP BUTTON */}
           {step === 1 && (
             <Button
+              type="button"
               variant="outline"
               onClick={handleGenerateOtp}
               isLoading={isLoading}
@@ -173,20 +206,35 @@ export default function ForgotPasswordForm() {
 
           {/* OTP STEP */}
           {step >= 2 && (
-            <Input
-              id="otp"
-              label="Enter OTP"
-              placeholder="123456"
-              disabled={step > 2}
-              error={errors.otp?.message}
-              icon={<ShieldCheck className="h-4 w-4" />}
-              {...register("otp")}
-            />
+            <div className="space-y-1.5">
+              <Input
+                id="otp"
+                label="Enter OTP"
+                placeholder="123456"
+                disabled={step > 2}
+                error={errors.otp?.message}
+                icon={<ShieldCheck className="h-4 w-4" />}
+                {...register("otp")}
+              />
+              {step === 2 && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleGenerateOtp}
+                    disabled={isLoading}
+                    className="text-xs font-semibold text-orange-500 hover:text-orange-600 hover:underline disabled:opacity-50 transition-colors"
+                  >
+                    {isLoading ? "Resending..." : "Resend OTP Code"}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* VERIFY OTP BUTTON */}
           {step === 2 && (
             <Button
+              type="button"
               onClick={handleVerifyOtp}
               isLoading={isLoading}
               className="w-full"

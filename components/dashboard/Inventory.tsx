@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/utils/api";
 import { Spinner } from "@/components/ui/Spinner";
+import { useOnboarding } from "@/context/OnboardingContext";
 
 interface CategoryNode {
   id: string;
@@ -30,6 +31,7 @@ const itemSchema = z.object({
 type ItemFormValues = z.infer<typeof itemSchema>;
 
 export default function Inventory() {
+  const { searchQuery, setSearchQuery } = useOnboarding();
   const [items, setItems] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [categoryParents, setCategoryParents] = useState<{ [key: string]: string }>({});
@@ -37,7 +39,6 @@ export default function Inventory() {
   const [sitesList, setSitesList] = useState<any[]>([]);
   const [locationsList, setLocationsList] = useState<any[]>([]);
 
-  const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -71,7 +72,7 @@ export default function Inventory() {
     try {
       setIsLoading(true);
       const [invRes, sitesRes, categoriesRes] = await Promise.all([
-        api.get("/inventory"),
+        api.get(`/inventory?search=${encodeURIComponent(searchQuery)}`),
         api.get("/sites"),
         api.get("/categories"),
       ]);
@@ -104,7 +105,7 @@ export default function Inventory() {
 
   useEffect(() => {
     loadInventory();
-  }, []);
+  }, [searchQuery]);
 
   const handleOpenAddModal = () => {
     setEditingItem(null);
@@ -181,14 +182,11 @@ export default function Inventory() {
   };
 
   const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.sku.toLowerCase().includes(search.toLowerCase());
     const matchesCategory =
       filterCategory === "all" ||
       item.category === filterCategory ||
       (item.category && isDescendant(item.category, filterCategory));
-    return matchesSearch && matchesCategory;
+    return matchesCategory;
   });
 
   const filteredLocations = locationsList.filter(
@@ -230,8 +228,8 @@ export default function Inventory() {
           <input
             type="text"
             placeholder="Search SKU or name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-2xl border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-sm focus:border-orange-500/50 focus:outline-none border focus:ring-4 focus:ring-orange-500/5 transition-all"
           />
         </div>

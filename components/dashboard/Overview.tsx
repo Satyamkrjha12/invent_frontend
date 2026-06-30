@@ -83,14 +83,19 @@ export default function Overview({ onTabChange }: OverviewProps) {
   const [kpis, setKpis] = useState<any>({ users: 0, items: 0, inventoryValue: 0, recentActivities: 0 });
   const [chartData, setChartData] = useState<any>({ labels: [], data: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadOverviewData() {
       try {
         setIsLoading(true);
-        const res = await api.get("/dashboard");
+        const [res, actRes] = await Promise.all([
+          api.get("/dashboard"),
+          api.get("/activities")
+        ]);
         setKpis(res.kpis || { users: 0, items: 0, inventoryValue: 0, recentActivities: 0 });
         setChartData(res.charts || { labels: [], data: [] });
+        setActivities((actRes.activities || []).slice(0, 4));
       } catch (err) {
         console.error("Failed to load overview data:", err);
       } finally {
@@ -102,6 +107,20 @@ export default function Overview({ onTabChange }: OverviewProps) {
 
   const sitesCount = sites.length || 0;
   const locationsCount = locations.length || 0;
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case "transfer":
+        return { icon: ArrowRightLeft, color: "text-blue-500 bg-blue-50" };
+      case "check_in":
+        return { icon: ArrowDownLeft, color: "text-emerald-500 bg-emerald-50" };
+      case "check_out":
+        return { icon: ArrowUpRight, color: "text-red-500 bg-red-50" };
+      case "audit":
+      default:
+        return { icon: ClipboardCheck, color: "text-orange-500 bg-orange-50" };
+    }
+  };
 
   const stats = [
     {
@@ -280,6 +299,7 @@ export default function Overview({ onTabChange }: OverviewProps) {
                   ))
                 )}
               </div>
+
             </div>
           </div>
 
@@ -311,26 +331,33 @@ export default function Overview({ onTabChange }: OverviewProps) {
 
             {/* List Feed */}
             <div className="divide-y divide-gray-50">
-              {MOCK_ACTIVITIES.map((activity) => {
-                const ActivityIcon = activity.icon;
-                return (
-                  <div key={activity.id} className="py-3.5 first:pt-0 last:pb-0">
-                    <div className="flex gap-3.5">
-                      <div className={`rounded-xl p-2 h-9 w-9 shrink-0 flex items-center justify-center ${activity.iconColor}`}>
-                        <ActivityIcon className="h-4.5 w-4.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-gray-900 truncate">{activity.action}</p>
-                          <span className="text-3xs text-gray-400 whitespace-nowrap shrink-0">{activity.time}</span>
+              {activities.length > 0 ? (
+                activities.map((activity) => {
+                  const resolved = getActivityIcon(activity.type);
+                  const ActivityIcon = resolved.icon;
+                  return (
+                    <div key={activity.id} className="py-3.5 first:pt-0 last:pb-0">
+                      <div className="flex gap-3.5">
+                        <div className={`rounded-xl p-2 h-9 w-9 shrink-0 flex items-center justify-center ${resolved.color}`}>
+                          <ActivityIcon className="h-4.5 w-4.5" />
                         </div>
-                        <p className="text-2xs text-gray-400 font-medium truncate mt-0.5">{activity.details}</p>
-                        <p className="text-3xs text-gray-500 mt-1 font-semibold">User: {activity.user}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-bold text-gray-900 truncate">{activity.action}</p>
+                            <span className="text-3xs text-gray-400 whitespace-nowrap shrink-0">{activity.time}</span>
+                          </div>
+                          <p className="text-2xs text-gray-400 font-medium truncate mt-0.5">{activity.details}</p>
+                          <p className="text-3xs text-gray-500 mt-1 font-semibold">User: {activity.user}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <div className="py-12 text-center text-xs font-semibold text-gray-400">
+                  No recent activities recorded.
+                </div>
+              )}
             </div>
           </div>
 

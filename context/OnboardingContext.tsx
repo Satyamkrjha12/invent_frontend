@@ -42,12 +42,17 @@ interface OnboardingContextProps {
   assetFields: string[];
   events: string[];
   
+  // Search state
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+
   // Auth state
   token: string | null;
-  user: { id: string; name: string; email: string; role: string; tenantId: string | null; tenantName: string | null } | null;
+  user: { id: string; name: string; email: string; role: string; tenantId: string | null; tenantName: string | null; paymentCompleted: boolean } | null;
   isLoading: boolean;
-  login: (token: string, user: any) => void;
+  login: (token: string, refreshToken: string | null, user: any) => void;
   logout: () => void;
+  setUser: (user: any) => void;
 
   setStep: (step: number) => void;
   nextStep: () => void;
@@ -61,6 +66,10 @@ interface OnboardingContextProps {
   setAssetFields: (fields: string[]) => void;
   setEvents: (events: string[]) => void;
   resetStore: () => void;
+
+  // Razorpay Actions
+  createRazorpayOrder: (plan: string) => Promise<any>;
+  verifyRazorpayPayment: (paymentData: any) => Promise<any>;
 }
 
 const initialCompanyInfo: CompanyInfoData = {
@@ -102,29 +111,47 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [assetFields, setAssetFieldsState] = useState<string[]>(initialAssetFields);
   const [events, setEventsState] = useState<string[]>(initialEvents);
 
+  // Search State
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Auth State
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const login = (newToken: string, newUser: any) => {
+  const login = (newToken: string, newRefreshToken: string | null, newUser: any) => {
     localStorage.setItem("token", newToken);
+    if (newRefreshToken) {
+      localStorage.setItem("refreshToken", newRefreshToken);
+    }
     document.cookie = `auth-token=${newToken}; path=/; max-age=86400; SameSite=Lax`;
     setToken(newToken);
     setUser(newUser);
     if (newUser?.tenantName) {
       setCompanyInfo((prev) => ({ ...prev, companyName: newUser.tenantName }));
     }
+    setIsCompleted(!!newUser?.tenantId);
   };
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     document.cookie = "auth-token=; path=/; max-age=0; SameSite=Lax";
     setToken(null);
     setUser(null);
     setIsCompleted(false);
     resetStore();
   };
+
+  useEffect(() => {
+    // Generate unique IDs on client mount to avoid database unique constraint collisions in multi-tenancy
+    if (sites.length === 1 && sites[0].id === "1") {
+      const siteId = `site_${Math.random().toString(36).substring(2, 9)}`;
+      const locId = `loc_${Math.random().toString(36).substring(2, 9)}`;
+      setSitesState([{ id: siteId, name: "Primary Warehouse", type: "warehouse", address: "HQ Site" }]);
+      setLocationsState([{ id: locId, siteId: siteId, name: "Aisle A, Bin 1", description: "General Storage" }]);
+    }
+  }, [sites]);
 
   useEffect(() => {
     async function checkSession() {
@@ -140,8 +167,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             const data = await res.json();
             setToken(storedToken);
             setUser(data.user);
+            setIsCompleted(!!data.user?.tenantId);
             if (data.user?.tenantId) {
-              setIsCompleted(true);
               if (data.user.tenantName) {
                 setCompanyInfo((prev) => ({ ...prev, companyName: data.user.tenantName }));
               }
@@ -198,16 +225,40 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
       const response = await api.post("/onboarding", payload);
       if (response && response.token) {
-        login(response.token, {
+        login(response.token, response.refreshToken || null, {
           ...user,
           tenantId: response.tenant.id,
           tenantName: response.tenant.name,
+          paymentCompleted: false,
         });
         setIsCompleted(true);
       }
     } catch (err: any) {
       console.error("Onboarding failed:", err);
       alert(err.message || "Failed to complete onboarding");
+      throw err;
+    }
+  };
+
+  const createRazorpayOrder = async (plan: string) => {
+    try {
+      const order = await api.post("/onboarding/razorpay-order", { plan });
+      return order;
+    } catch (err: any) {
+      console.error("Failed to create Razorpay order:", err);
+      throw err;
+    }
+  };
+
+  const verifyRazorpayPayment = async (paymentData: any) => {
+    try {
+      const response = await api.post("/onboarding/razorpay-verify", paymentData);
+      if (response && response.token) {
+        login(response.token, response.refreshToken || null, response.user);
+      }
+      return response;
+    } catch (err: any) {
+      console.error("Failed to verify Razorpay payment:", err);
       throw err;
     }
   };
@@ -250,12 +301,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         categories,
         assetFields,
         events,
+
+        searchQuery,
+        setSearchQuery,
         
         token,
         user,
         isLoading,
         login,
         logout,
+        setUser,
 
         setStep,
         nextStep,
@@ -269,6 +324,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         setAssetFields,
         setEvents,
         resetStore,
+
+        createRazorpayOrder,
+        verifyRazorpayPayment,
       }}
     >
       {children}
